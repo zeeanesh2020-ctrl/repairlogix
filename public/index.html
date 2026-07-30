@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepairLogix — Enterprise Portals</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-primary: #08090a; --bg-card: #121316; --accent-gold: #d4af37; --border-subtle: rgba(255, 255, 255, 0.05); }
+        * { -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: #f5f5f7; background-image: radial-gradient(circle at 15% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 40%); overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+        .glass { background: rgba(18, 19, 22, 0.6); backdrop-filter: blur(24px); border: 1px solid var(--border-subtle); }
+        .btn-gold { background: linear-gradient(180deg, #e6c757 0%, #d4af37 100%); color: #000; font-weight: 600; transition: all 0.3s; }
+        .btn-gold:hover { transform: translateY(-1px); }
+        .btn-ghost { border: 1px solid rgba(255,255,255,0.1); color: #a1a1aa; }
+        #sigCanvas { background: #fff; border-radius: 12px; cursor: crosshair; width: 100%; height: 150px; touch-action: none; }
+        select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23d4af37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25em; padding-right: 2.5rem; }
+        .step-active { background-color: var(--accent-gold); color: #000; border-color: var(--accent-gold) !important; }
+        .step-completed { background-color: rgba(212, 175, 55, 0.2); color: var(--accent-gold); border-color: rgba(212, 175, 55, 0.3) !important; }
+        .rec-dot { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="flex">
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="fixed inset-0 flex items-center justify-center p-4 z-50">
+    <div class="glass rounded-3xl p-8 w-full max-w-md text-center">
+        <div class="flex justify-center mb-6">
+            <div class="w-12 h-12 bg-gradient-to-br from-[#d4af37] to-[#8a7028] rounded-xl flex items-center justify-center shadow-lg rotate-45">
+                <div class="w-6 h-6 bg-[#08090a] rounded-sm -rotate-45 flex items-center justify-center"><div class="w-3 h-3 bg-[#d4af37] rounded-full"></div></div>
+            </div>
+        </div>
+        <h1 class="text-3xl font-bold mb-2">Repair<span class="text-[#d4af37]">Logix</span></h1>
+        <p class="text-gray-500 mb-8 text-sm uppercase tracking-widest">Enterprise Portal Login</p>
+        <form id="loginForm" class="space-y-4 text-left">
+            <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Username</label><input type="text" id="username" required class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]"></div>
+            <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Password</label><input type="password" id="password" required class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]"></div>
+            <div id="loginError" class="text-red-400 text-sm hidden"></div>
+            <button type="submit" class="btn-gold w-full py-3 rounded-xl font-semibold">Sign In</button>
+        </form>
+        
+                <button onclick="openModal('privacyModal')" class="text-gray-500 hover:text-white text-xs mt-4 block mx-auto underline">Privacy Policy</button>
+        <button onclick="showTracking()" class="text-gray-400 hover:text-[#d4af37] text-sm mt-6 flex items-center gap-2 mx-auto transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            Track My Repair
+        </button>
+    </div>
+</div>
+
+<!-- MAIN APP VIEW -->
+<div id="appView" class="hidden w-full">
+    <header class="glass border-b border-white/5 sticky top-0 z-30">
+        <div class="max-w-[1600px] mx-auto px-4 md:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-gradient-to-br from-[#d4af37] to-[#8a7028] rounded-lg flex items-center justify-center shadow-lg rotate-45"><div class="w-4 h-4 bg-[#08090a] rounded-sm -rotate-45 flex items-center justify-center"><div class="w-2 h-2 bg-[#d4af37] rounded-full"></div></div></div>
+                <div><h1 class="text-lg font-bold tracking-tight">Repair<span class="text-[#d4af37]">Logix</span></h1><p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 -mt-1" id="userRoleDisplay">Portal</p></div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-400 hidden sm:inline">Welcome, <span class="text-white font-medium" id="userNameDisplay">User</span></span>
+                <button onclick="logout()" class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg hover:bg-red-500/20 transition">Logout</button>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-[1600px] mx-auto p-4 md:p-8"><div id="view-container">Loading...</div></main>
+</div>
+
+<!-- CUSTOMER TRACKING VIEW -->
+<div id="trackingView" class="hidden fixed inset-0 overflow-y-auto p-4 z-40">
+    <div class="max-w-2xl mx-auto pt-10">
+        <div class="flex justify-center mb-6">
+            <div class="w-12 h-12 bg-gradient-to-br from-[#d4af37] to-[#8a7028] rounded-xl flex items-center justify-center shadow-lg rotate-45"><div class="w-6 h-6 bg-[#08090a] rounded-sm -rotate-45 flex items-center justify-center"><div class="w-3 h-3 bg-[#d4af37] rounded-full"></div></div></div>
+        </div>
+        <div class="glass rounded-3xl p-6 md:p-8">
+            <h2 class="text-2xl md:text-3xl font-bold mb-2 text-center">Track Your Repair</h2>
+            <p class="text-gray-500 text-sm text-center mb-6">Enter your Order ID (e.g., RLX-XXXXX) to see live status.</p>
+            <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                <input type="text" id="trackInput" placeholder="Enter Order ID" class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37] uppercase">
+                <button onclick="trackOrder()" class="btn-gold px-6 py-3 rounded-xl font-semibold">Track</button>
+            </div>
+            <div id="trackError" class="text-red-400 text-sm text-center hidden mb-4"></div>
+            <div id="trackResult" class="hidden"></div>
+            <button onclick="showLogin()" class="text-gray-500 hover:text-white text-sm mt-8 flex items-center gap-2 mx-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg> Back to Login</button>
+        </div>
+    </div>
+</div>
+
+<!-- PRIVACY POLICY MODAL -->
+<div id="privacyModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-lg p-8 relative max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold">Privacy Policy</h3><button onclick="closeModal('privacyModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <div class="space-y-4 text-sm text-gray-400 overflow-y-auto pr-2">
+            <p>RepairLogix ("we", "us", or "our") respects your privacy. This Privacy Policy explains how we collect, use, and protect your personal information when you use our device repair logistics services.</p>
+            <p class="text-white font-bold mt-4">1. Information We Collect</p>
+            <p>We collect your Name, Phone Number, Device Model, and details regarding the device's condition. We also collect visual evidence (diagnostic videos, repair videos, photos, and a "Proof of Possession" photo at pickup) and your digital signature authorizing repairs and payments.</p>
+            <p class="text-white font-bold mt-4">2. Purpose of Data Collection</p>
+            <p>Your data is collected strictly for operational logistics, payment processing, and dispute resolution. The visual evidence and signatures are captured to protect both the customer and RepairLogix against fraudulent claims, damage disputes, and chargebacks.</p>
+            <p class="text-white font-bold mt-4">3. Data Retention</p>
+            <p>M media evidence (videos, photos, signatures) and activity logs are retained for a period of 90 days after the completion of the repair to allow for the resolution of any potential payment disputes, after which they are permanently deleted from our servers.</p>
+            <p class="text-white font-bold mt-4">4. SMS Communications</p>
+            <p>By opting in, you consent to receive automated SMS notifications regarding your repair status. Standard message and data rates may apply. You may opt-out at any time by replying "STOP" to any message.</p>
+            <p class="text-white font-bold mt-4">5. Your Rights (CCPA)</p>
+            <p>If you are a California resident, you have the right to request access to or deletion of your personal information. To exercise these rights, please contact us at support@repairlogix.com.</p>
+            <p class="text-white font-bold mt-4">6. Biometric & Photo Consent (BIPA)</p>
+            <p>By checking the consent box at intake, you explicitly authorize RepairLogix to capture a "Proof of Possession" photo at the time of device pickup. This photo is used solely for the purpose of verifying device receipt and preventing fraud, is not used for facial recognition or biometric identification, and will be deleted within 90 days.</p>
+        </div>
+        <button onclick="closeModal('privacyModal')" class="btn-gold w-full py-3 rounded-xl font-semibold mt-6">I Acknowledge</button>
+    </div>
+</div>
+    
+<!-- CASHIER INTAKE MODAL -->
+<div id="intakeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-2xl p-4 md:p-8 relative max-h-[95vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl md:text-2xl font-bold">New Device Intake</h3><button onclick="closeModal('intakeModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <div class="flex items-center justify-center gap-2 md:gap-4 mb-6 text-xs md:text-sm">
+            <div class="flex items-center gap-1 md:gap-2"><div id="step-dot-1" class="step-active w-6 h-6 md:w-8 md:h-8 rounded-full border border-white/10 flex items-center justify-center text-xs md:text-sm font-semibold">1</div><span class="hidden sm:inline font-medium text-white">Details</span></div>
+            <div class="w-4 md:w-8 h-px bg-white/10"></div>
+            <div class="flex items-center gap-1 md:gap-2"><div id="step-dot-2" class="w-6 h-6 md:w-8 md:h-8 rounded-full border border-white/10 flex items-center justify-center text-xs md:text-sm font-semibold text-gray-500">2</div><span class="hidden sm:inline font-medium text-gray-500">Diagnostic</span></div>
+            <div class="w-4 md:w-8 h-px bg-white/10"></div>
+            <div class="flex items-center gap-1 md:gap-2"><div id="step-dot-3" class="w-6 h-6 md:w-8 md:h-8 rounded-full border border-white/10 flex items-center justify-center text-xs md:text-sm font-semibold text-gray-500">3</div><span class="hidden sm:inline font-medium text-gray-500">Signature</span></div>
+        </div>
+        <form id="intakeForm" class="space-y-5 overflow-y-auto flex-1 pr-2">
+            <div id="wizard-step-1" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Customer Name</label><input type="text" id="m_customerName" required class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]"></div>
+                    <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Phone</label><input type="tel" id="m_customerPhone" required class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]"></div>
+                </div>
+                <div class="bg-black/30 border border-[#d4af37]/20 rounded-xl p-4 space-y-4">
+                    <h4 class="text-xs uppercase tracking-wider text-[#d4af37]">Itemized Estimate Engine</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Device Model</label>
+                            <select id="m_deviceModel" onchange="updateEstimate()" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]">
+                                <optgroup label="Apple Devices"><option>iPhone 17 Pro Max</option><option>iPhone 17 Pro</option><option>iPhone 17</option><option>iPhone 16 Pro Max</option><option>iPhone 16 Pro</option><option>iPhone 16 Plus</option><option>iPhone 16</option><option>iPhone 15 Pro Max</option><option>iPhone 15 Pro</option><option>iPhone 15 Plus</option><option>iPhone 15</option><option>iPhone 14 Pro Max</option><option>iPhone 14 Pro</option><option>iPhone 14 Plus</option><option>iPhone 14</option><option>iPhone 13 Pro Max</option><option>iPhone 13 Pro</option><option>iPhone 13</option><option>iPhone SE (3rd Gen)</option></optgroup>
+                                <optgroup label="Samsung Devices"><option>Galaxy S26 Ultra</option><option>Galaxy S26+</option><option>Galaxy S26</option><option>Galaxy S25 Ultra</option><option>Galaxy S25+</option><option>Galaxy S25</option><option>Galaxy Z Fold6</option><option>Galaxy Z Flip6</option><option>Galaxy S24 FE</option><option>Galaxy A55</option></optgroup>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Repair Type (Hold Ctrl/Cmd for multiple)</label>
+                            <select id="m_repairType" multiple onchange="updateEstimate()" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37] h-32">
+                                <option value="screen">Screen Only / Module</option><option value="battery">Standalone Battery</option><option value="back_glass">Back Glass Only</option><option value="rear_cam">Rear Camera Module</option><option value="full_device">Full Device / Other Damage</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Auto-Calc Repair Cost ($)</label><input type="number" id="m_repairCost" value="0" min="30" max="2000" required class="w-full bg-transparent text-3xl font-bold text-[#d4af37] outline-none border-b border-[#d4af37]/30 focus:border-[#d4af37] pb-1"></div>
+                </div>
+                <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Specific Issue / Notes</label><textarea id="m_issue" required rows="2" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]" placeholder="e.g., Severe shatter"></textarea></div>
+                               <div class="space-y-2 mt-4 bg-black/20 p-4 rounded-xl border border-white/5">
+                    <label class="flex items-start gap-2 text-xs text-gray-400">
+                        <input type="checkbox" id="m_smsConsent" required class="mt-1">
+                        <span>Customer opts-in to receive SMS status updates regarding their repair. Msg & data rates may apply. Reply STOP to cancel. See <a href="#" onclick="openModal('privacyModal'); return false;" class="text-[#d4af37] underline">Privacy Policy</a>.</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-gray-400">
+                        <input type="checkbox" id="m_photoConsent" required class="mt-1">
+                        <span>Customer consents to a "Proof of Possession" photo at pickup to verify device receipt and prevent fraud. <a href="#" onclick="openModal('privacyModal'); return false;" class="text-[#d4af37] underline">Privacy Policy</a>.</span>
+                    </label>
+                </div>
+                <button type="button" onclick="nextStep(2)" class="btn-gold w-full py-3 rounded-xl font-semibold">Continue to Diagnostic →</button>
+            </div>
+            <div id="wizard-step-2" class="hidden space-y-4">
+                <p class="text-gray-400 text-sm">Record a video demonstrating the device's condition.</p>
+                <div class="bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center space-y-3 border border-white/10">
+                    <video id="diagVideoPreview" autoplay muted playsinline class="w-full max-w-md rounded-lg border border-white/10 hidden"></video>
+                    <div id="recStatus" class="text-xs text-gray-500">Camera offline</div>
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button type="button" id="btnStartCam" onclick="startCamera('intake')" class="bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg text-xs border border-white/10">Start Camera</button>
+                        <button type="button" id="btnRec" onclick="startRecording()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs hidden items-center gap-2"><span class="w-2 h-2 bg-white rounded-full rec-dot"></span> Record</button>
+                        <button type="button" id="btnStop" onclick="stopRecording()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs hidden">Stop & Save</button>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="nextStep(1)" class="btn-ghost flex-1 py-3 rounded-xl text-sm">Back</button><button type="button" onclick="nextStep(3)" class="btn-gold flex-1 py-3 rounded-xl text-sm">Continue →</button></div>
+            </div>
+            <div id="wizard-step-3" class="hidden space-y-4">
+                <div class="bg-black/30 border border-white/10 rounded-xl p-4 flex justify-between items-center"><span class="text-sm text-gray-400">Final Estimate:</span><span class="text-2xl font-bold text-[#d4af37]">$<span id="finalPriceDisplay">379</span></span></div>
+                <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2 text-center">Customer Digital Signature</label><canvas id="sigCanvas" width="600" height="150"></canvas><button type="button" onclick="clearSig()" class="text-xs text-gray-500 mt-2 hover:text-white">Clear Signature</button></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="nextStep(2)" class="btn-ghost flex-1 py-3 rounded-xl text-sm">Back</button><button type="submit" class="btn-gold flex-1 py-3 rounded-xl text-sm">Push to Dispatch</button></div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TECH REVISION MODAL -->
+<div id="techReviseModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-md p-8 relative">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold">Revise Estimate</h3><button onclick="closeModal('techReviseModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <form id="reviseForm" class="space-y-4">
+            <input type="hidden" id="reviseOrderId">
+            <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">New Repair Cost ($)</label><input type="number" id="reviseCost" min="30" max="2000" required class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]"></div>
+            <div><label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Reason / New Repair Details</label><textarea id="reviseNotes" required rows="3" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#d4af37]" placeholder="e.g., Found additional water damage."></textarea></div>
+            <button type="submit" class="btn-gold w-full py-3 rounded-xl font-semibold">Send to Customer for Approval</button>
+        </form>
+    </div>
+</div>
+
+<!-- TECH VIDEO MODAL -->
+<div id="techVideoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-2xl p-4 md:p-8 relative max-h-[95vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6"><div><h3 class="text-xl md:text-2xl font-bold" id="techVideoTitle">Tech Video Recorder</h3><p class="text-gray-500 text-sm" id="techVideoSubtitle">Order: ...</p></div><button onclick="closeModal('techVideoModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <div class="bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center space-y-3 border border-white/10 flex-1">
+            <video id="techVideoPreview" autoplay muted playsinline class="w-full max-w-md rounded-lg border border-white/10 hidden"></video>
+            <div id="techRecStatus" class="text-xs text-gray-500">Camera offline</div>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button type="button" id="btnTechStartCam" onclick="startCamera('tech')" class="bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg text-xs border border-white/10">Start Camera</button>
+                <button type="button" id="btnTechRec" onclick="startRecording()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs hidden items-center gap-2"><span class="w-2 h-2 bg-white rounded-full rec-dot"></span> Record</button>
+                <button type="button" id="btnTechStop" onclick="stopRecording()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs hidden">Stop & Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DRIVER PHOTO MODAL -->
+<div id="driverPhotoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-2xl p-4 md:p-8 relative max-h-[95vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6"><div><h3 class="text-xl md:text-2xl font-bold">Driver Photo Capture</h3><p class="text-gray-500 text-sm" id="photoSubtitle">Take a picture</p></div><button onclick="closeModal('driverPhotoModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <div class="bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center space-y-3 border border-white/10 flex-1">
+            <video id="driverPhotoPreview" autoplay muted playsinline class="w-full max-w-md rounded-lg border border-white/10 hidden"></video>
+            <canvas id="photoCanvas" class="hidden"></canvas>
+            <div id="photoStatus" class="text-xs text-gray-500">Initializing camera...</div>
+            <button type="button" id="btnCapturePhoto" onclick="capturePhoto()" class="btn-gold px-6 py-2 rounded-lg text-xs hidden">Capture Photo</button>
+        </div>
+    </div>
+</div>
+
+<!-- CUSTOMER PICKUP MODAL (Video + Sig + Selfie) -->
+<div id="pickupModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-2xl p-4 md:p-8 relative max-h-[95vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <div><h3 class="text-xl md:text-2xl font-bold">Customer Pickup & Confirmation</h3><p class="text-gray-500 text-sm" id="pickupSubtitle">Order: ...</p></div>
+            <button onclick="closeModal('pickupModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="flex items-center justify-center gap-4 mb-6 text-xs md:text-sm">
+            <div class="flex items-center gap-2"><div id="pickup-dot-1" class="step-active w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-sm font-semibold">1</div><span class="hidden sm:inline font-medium text-white">Video</span></div>
+            <div class="w-8 h-px bg-white/10"></div>
+            <div class="flex items-center gap-2"><div id="pickup-dot-2" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-sm font-semibold text-gray-500">2</div><span class="hidden sm:inline font-medium text-gray-500">Signature</span></div>
+            <div class="w-8 h-px bg-white/10"></div>
+            <div class="flex items-center gap-2"><div id="pickup-dot-3" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-sm font-semibold text-gray-500">3</div><span class="hidden sm:inline font-medium text-gray-500">Selfie</span></div>
+        </div>
+        <div class="overflow-y-auto flex-1 pr-2">
+            <div id="pickup-step-1" class="space-y-4">
+                <p class="text-gray-400 text-sm">Record a video of handing the phone to the customer and receiving cash payment.</p>
+                <div class="bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center space-y-3 border border-white/10">
+                    <video id="pickupVideoPreview" autoplay muted playsinline class="w-full max-w-md rounded-lg border border-white/10 hidden"></video>
+                    <div id="pickupRecStatus" class="text-xs text-gray-500">Camera offline</div>
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button type="button" id="btnPickupStartCam" onclick="startPickupCamera()" class="bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg text-xs border border-white/10">Start Camera</button>
+                        <button type="button" id="btnPickupRec" onclick="startPickupRecording()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs hidden items-center gap-2"><span class="w-2 h-2 bg-white rounded-full rec-dot"></span> Record</button>
+                        <button type="button" id="btnPickupStop" onclick="stopPickupRecording()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs hidden">Stop & Save</button>
+                    </div>
+                </div>
+                <button type="button" id="btnPickupToSig" onclick="nextPickupStep(2)" class="btn-gold w-full py-3 rounded-xl font-semibold hidden">Continue to Signature →</button>
+            </div>
+            <div id="pickup-step-2" class="hidden space-y-4">
+                <p class="text-gray-400 text-sm">Have the customer sign below confirming they received the device.</p>
+                <canvas id="pickupSigCanvas" width="600" height="150" class="w-full bg-white rounded-xl cursor-crosshair"></canvas>
+                <button type="button" onclick="clearPickupSig()" class="text-xs text-gray-500 hover:text-white">Clear Signature</button>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="nextPickupStep(1)" class="btn-ghost flex-1 py-3 rounded-xl text-sm">Back</button><button type="button" onclick="nextPickupStep(3)" class="btn-gold flex-1 py-3 rounded-xl text-sm">Continue to Selfie →</button></div>
+            </div>
+            <div id="pickup-step-3" class="hidden space-y-4">
+               
+                    
+                                  <p class="text-gray-400 text-sm">Capture a "Proof of Possession" photo of the customer holding the device to finalize. (Consent obtained at intake).</p>
+                
+                
+               
+                <div class="bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center space-y-3 border border-white/10">
+                    <video id="selfiePreview" autoplay muted playsinline class="w-full max-w-sm rounded-lg border border-white/10 hidden"></video>
+                    <canvas id="selfieCanvas" class="hidden"></canvas>
+                    <div id="selfieStatus" class="text-xs text-gray-500">Camera offline</div>
+                    <button type="button" id="btnCaptureSelfie" onclick="captureSelfie()" class="btn-gold px-6 py-2 rounded-lg text-xs hidden">Capture Selfie</button>
+                </div>
+                <button type="button" id="btnSubmitPickup" onclick="submitPickup()" class="btn-gold w-full py-3 rounded-xl font-semibold hidden">Submit & Complete Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EVIDENCE VIEWER MODAL -->
+<div id="evidenceModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl w-full max-w-4xl p-4 md:p-8 relative max-h-[95vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6"><div><h3 class="text-xl md:text-2xl font-bold">Dispute Evidence & Audit Trail</h3><p class="text-gray-500 text-sm" id="evSubtitle">Order: ...</p></div><button onclick="closeModal('evidenceModal')" class="text-gray-500 hover:text-white text-2xl">&times;</button></div>
+        <div id="evContent" class="space-y-6 overflow-y-auto pr-2 flex-1"></div>
+    </div>
+</div>
+
+<script>
+    let orders = [];
+    let currentUser = null;
+    let sigCanvas, sigCtx, drawing = false;
+    let mediaRecorder, recordedChunks = [];
+    let uploadedVideoUrl = null;
+    let videoContext = { mode: null, orderId: null, type: null };
+    let photoStream = null;
+    let photoContext = { orderId: null, type: null };
+    let activeTechOrderId = null;
+    let activeTechType = null;
+    let handoverContext = { orderId: null };
+
+    const PRICING_MATRIX = {
+        "iPhone 17 Pro Max": { screen: 379, battery: 119, back_glass: 159, rear_cam: 249, full_device: 799 },
+        "iPhone 17 Pro": { screen: 349, battery: 119, back_glass: 159, rear_cam: 249, full_device: 749 },
+        "iPhone 17": { screen: 329, battery: 119, back_glass: 159, rear_cam: 249, full_device: 699 },
+        "iPhone 16 Pro Max": { screen: 379, battery: 119, back_glass: 199, rear_cam: 249, full_device: 799 },
+        "iPhone 16 Pro": { screen: 329, battery: 119, back_glass: 169, rear_cam: 249, full_device: 749 },
+        "iPhone 16 Plus": { screen: 279, battery: 99, back_glass: 199, rear_cam: 169, full_device: 649 },
+        "iPhone 16": { screen: 249, battery: 99, back_glass: 169, rear_cam: 169, full_device: 549 },
+        "iPhone 15 Pro Max": { screen: 379, battery: 119, back_glass: 199, rear_cam: 229, full_device: 749 },
+        "iPhone 15 Pro": { screen: 329, battery: 119, back_glass: 169, rear_cam: 229, full_device: 699 },
+        "iPhone 15 Plus": { screen: 279, battery: 99, back_glass: 199, rear_cam: 169, full_device: 619 },
+        "iPhone 15": { screen: 249, battery: 99, back_glass: 169, rear_cam: 169, full_device: 549 },
+        "iPhone 14 Pro Max": { screen: 379, battery: 99, back_glass: 549, rear_cam: 219, full_device: 699 },
+        "iPhone 14 Pro": { screen: 329, battery: 99, back_glass: 499, rear_cam: 219, full_device: 649 },
+        "iPhone 14 Plus": { screen: 279, battery: 99, back_glass: 199, rear_cam: 169, full_device: 599 },
+        "iPhone 14": { screen: 249, battery: 99, back_glass: 169, rear_cam: 169, full_device: 549 },
+        "iPhone 13 Pro Max": { screen: 329, battery: 89, back_glass: null, rear_cam: 199, full_device: 599 },
+        "iPhone 13 Pro": { screen: 279, battery: 89, back_glass: null, rear_cam: 199, full_device: 549 },
+        "iPhone 13": { screen: 279, battery: 89, back_glass: null, rear_cam: 169, full_device: 449 },
+        "iPhone SE (3rd Gen)": { screen: 129, battery: 69, back_glass: null, rear_cam: 99, full_device: 299 },
+        "Galaxy S26 Ultra": { screen: 289, battery: 99, back_glass: 115, rear_cam: 219, full_device: 599 },
+        "Galaxy S26+": { screen: 229, battery: 99, back_glass: 99, rear_cam: 140, full_device: 499 },
+        "Galaxy S26": { screen: 209, battery: 79, back_glass: 79, rear_cam: 120, full_device: 449 },
+        "Galaxy S25 Ultra": { screen: 259, battery: 99, back_glass: 109, rear_cam: 219, full_device: 549 },
+        "Galaxy S25+": { screen: 199, battery: 99, back_glass: 89, rear_cam: 140, full_device: 449 },
+        "Galaxy S25": { screen: 174, battery: 79, back_glass: 69, rear_cam: 120, full_device: 399 },
+        "Galaxy Z Fold6": { screen: 549, battery: 109, back_glass: 149, rear_cam: 199, full_device: 699 },
+        "Galaxy Z Flip6": { screen: 399, battery: 99, back_glass: 99, rear_cam: 149, full_device: 599 },
+        "Galaxy S24 FE": { screen: 160, battery: 79, back_glass: 69, rear_cam: 99, full_device: 349 },
+        "Galaxy A55": { screen: 129, battery: 69, back_glass: 59, rear_cam: 89, full_device: 199 }
+    };
+
+    window.onload = async () => {
+        sigCanvas = document.getElementById('sigCanvas');
+        sigCtx = sigCanvas.getContext('2d');
+        sigCtx.strokeStyle = "#000"; sigCtx.lineWidth = 2;
+        sigCanvas.addEventListener('mousedown', startDraw);
+        sigCanvas.addEventListener('mousemove', draw);
+        sigCanvas.addEventListener('mouseup', () => drawing = false);
+        sigCanvas.addEventListener('mouseleave', () => drawing = false);
+        sigCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e.touches[0]); }, { passive: false });
+        sigCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }, { passive: false });
+        sigCanvas.addEventListener('touchend', () => drawing = false);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('track')) {
+            showTracking();
+            document.getElementById('trackInput').value = urlParams.get('track').toUpperCase();
+            trackOrder();
+        } else {
+            await checkAuth();
+        }
+    };
+
+    async function checkAuth() {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) { const data = await res.json(); currentUser = data.user; showApp(); } 
+            else { showLogin(); }
+        } catch (err) { showLogin(); }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch('/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username.value, password: password.value })
+        });
+        if (res.ok) { const data = await res.json(); currentUser = data.user; showApp(); } 
+        else { const err = await res.json(); document.getElementById('loginError').innerText = err.error; document.getElementById('loginError').classList.remove('hidden'); }
+    });
+
+    async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); currentUser = null; showLogin(); }
+    function showLogin() { document.getElementById('loginView').classList.remove('hidden'); document.getElementById('appView').classList.add('hidden'); document.getElementById('trackingView').classList.add('hidden'); }
+    function showApp() { document.getElementById('loginView').classList.add('hidden'); document.getElementById('appView').classList.remove('hidden'); document.getElementById('userNameDisplay').innerText = currentUser.username; document.getElementById('userRoleDisplay').innerText = currentUser.role.toUpperCase() + ' PORTAL'; fetchOrders(); }
+    function showTracking() { document.getElementById('loginView').classList.add('hidden'); document.getElementById('appView').classList.add('hidden'); document.getElementById('trackingView').classList.remove('hidden'); document.getElementById('trackResult').classList.add('hidden'); document.getElementById('trackError').classList.add('hidden'); }
+
+    async function trackOrder() {
+        const id = document.getElementById('trackInput').value.trim().toUpperCase();
+        const errBox = document.getElementById('trackError');
+        const resBox = document.getElementById('trackResult');
+        errBox.classList.add('hidden'); resBox.classList.add('hidden');
+        if (!id) { errBox.innerText = "Please enter an Order ID."; errBox.classList.remove('hidden'); return; }
+
+        try {
+            const res = await fetch(`/api/track/${id}`);
+            const data = await res.json();
+            if (!res.ok || !data.success) { errBox.innerText = data.error || "Order not found."; errBox.classList.remove('hidden'); return; }
+
+            const o = data.order;
+            const workflow = ['DROPPED_AT_STATION', 'DRIVER_TO_TECH', 'AT_TECH', 'REPAIRING', 'REPAIR_DONE', 'DRIVER_TO_STATION', 'READY_FOR_CUSTOMER', 'COMPLETED'];
+            const currentStep = workflow.indexOf(o.status);
+            const steps = [
+                { icon: '📥', label: 'Dropped at Station' }, { icon: '🚗', label: 'Driver Picked Up' }, { icon: '🔬', label: 'At Tech Lab' },
+                { icon: '🛠️', label: 'Repairing' }, { icon: '✅', label: 'Repair Complete' }, { icon: '🚗', label: 'En Route to Station' },
+                { icon: '📦', label: 'Ready for Pickup!' }, { icon: '🎉', label: 'Completed & Paid' }
+            ];
+
+            let timelineHtml = '';
+            steps.forEach((step, index) => {
+                const isDone = index <= currentStep;
+                const isCurrent = index === currentStep;
+                timelineHtml += `<div class="flex items-center gap-4 ${isCurrent ? 'scale-105' : ''} transition-transform"><div class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${isDone ? 'bg-[#d4af37]/20 border-2 border-[#d4af37]' : 'bg-black/40 border-2 border-white/10'}">${isDone ? step.icon : '○'}</div><div><p class="font-medium ${isDone ? 'text-white' : 'text-gray-600'}">${step.label}</p>${isCurrent ? '<p class="text-xs text-[#d4af37]">Current Status</p>' : ''}</div></div>`;
+            });
+
+            let revisionHtml = '';
+            if (o.revision_status === 'Pending Customer') {
+                revisionHtml = `<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6 text-center"><p class="text-yellow-400 font-bold mb-2">Revision Required</p><p class="text-white mb-1">Tech recommends: $${o.revised_cost}</p><p class="text-gray-400 text-sm mb-4">${o.issue}</p><div class="flex gap-3 justify-center"><button onclick="approveRevision('${o.id}')" class="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2 rounded-lg font-semibold">Approve</button><button onclick="rejectRevision('${o.id}')" class="bg-red-500 hover:bg-red-400 text-white px-6 py-2 rounded-lg font-semibold">Reject</button></div></div>`;
+            } else if (o.revision_status === 'Approved') {
+                revisionHtml = `<div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-6 text-center"><p class="text-emerald-400 font-bold">Revised Estimate Approved ($${o.repair_cost})</p></div>`;
+            } else if (o.revision_status === 'Rejected') {
+                revisionHtml = `<div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 text-center"><p class="text-red-400 font-bold">Revised Estimate Rejected. Phone returning unrepaired.</p></div>`;
+            }
+
+            resBox.innerHTML = `<div class="bg-[#d4af37]/10 border border-[#d4af37]/20 rounded-xl p-4 mb-6"><p class="text-xs text-[#d4af37] uppercase tracking-wider">Device</p><p class="text-xl font-bold text-white">${sanitize(o.device_model)}</p><p class="text-sm text-gray-400 mt-1">Customer: ${sanitize(o.customer_name)}</p></div>${revisionHtml}<div class="space-y-4 pl-2">${timelineHtml}</div>`;
+            resBox.classList.remove('hidden');
+        } catch (err) { errBox.innerText = "Network error."; errBox.classList.remove('hidden'); }
+    }
+
+    async function approveRevision(id) { await fetch(`/api/public/revise/${id}/approve`, { method: 'PATCH' }); alert("Revision approved! The tech will proceed."); trackOrder(); }
+    async function rejectRevision(id) { await fetch(`/api/public/revise/${id}/reject`, { method: 'PATCH' }); alert("Revision rejected. The phone will be returned."); trackOrder(); }
+
+    function updateEstimate() {
+        const model = document.getElementById('m_deviceModel').value;
+        const select = document.getElementById('m_repairType');
+        const device = PRICING_MATRIX[model];
+        if (!device) return;
+        let totalCost = 0; let selectedItems = [];
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].selected) {
+                const type = select.options[i].value;
+                if (type === 'back_glass' && device.back_glass === null) {
+                    alert("Back glass requires Full Device enclosure. Auto-selecting Full Device.");
+                    select.options[i].selected = false;
+                    for (let j = 0; j < select.options.length; j++) { if (select.options[j].value === 'full_device') select.options[j].selected = true; }
+                    updateEstimate(); return;
+                }
+                totalCost += device[type];
+                selectedItems.push(select.options[i].text);
+            }
+        }
+        document.getElementById('m_repairCost').value = totalCost;
+        window.m_repairItems = selectedItems.join(', ');
+    }
+
+    function sanitize(str) { if (!str) return ""; return String(str).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+
+    function nextStep(step) {
+        document.getElementById('wizard-step-1').classList.add('hidden');
+        document.getElementById('wizard-step-2').classList.add('hidden');
+        document.getElementById('wizard-step-3').classList.add('hidden');
+        document.getElementById(`wizard-step-${step}`).classList.remove('hidden');
+        for (let i = 1; i <= 3; i++) {
+            const dot = document.getElementById(`step-dot-${i}`);
+            dot.classList.remove('step-active', 'step-completed'); dot.classList.add('text-gray-500');
+            if (i < step) { dot.classList.add('step-completed'); dot.innerHTML = `✓`; }
+            else if (i === step) { dot.classList.add('step-active'); dot.innerText = i; }
+            else { dot.innerText = i; }
+        }
+        if (step === 3) document.getElementById('finalPriceDisplay').innerText = document.getElementById('m_repairCost').value;
+    }
+
+    let videoStream;
+    async function startCamera(mode, orderId = null, type = null) {
+        videoContext = { mode, orderId, type };
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
+            const videoEl = mode === 'intake' ? 'diagVideoPreview' : 'techVideoPreview';
+            document.getElementById(videoEl).srcObject = videoStream;
+            document.getElementById(videoEl).classList.remove('hidden');
+            document.getElementById(mode === 'intake' ? 'btnStartCam' : 'btnTechStartCam').classList.add('hidden');
+            document.getElementById(mode === 'intake' ? 'btnRec' : 'btnTechRec').classList.remove('hidden');
+            document.getElementById(mode === 'intake' ? 'btnRec' : 'btnTechRec').classList.add('flex');
+            document.getElementById(mode === 'intake' ? 'recStatus' : 'techRecStatus').innerText = "Camera ready.";
+        } catch (err) { alert("Camera access denied."); }
+    }
+
+    function startRecording() {
+        recordedChunks = []; mediaRecorder = new MediaRecorder(videoStream);
+        mediaRecorder.ondataavailable = (e) => e.data.size > 0 && recordedChunks.push(e.data);
+        mediaRecorder.onstop = uploadVideo; mediaRecorder.start();
+        const isIntake = videoContext.mode === 'intake';
+        document.getElementById(isIntake ? 'btnRec' : 'btnTechRec').classList.add('hidden');
+        document.getElementById(isIntake ? 'btnStop' : 'btnTechStop').classList.remove('hidden');
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+        const isIntake = videoContext.mode === 'intake';
+        document.getElementById(isIntake ? 'btnStop' : 'btnTechStop').classList.add('hidden');
+    }
+
+    async function uploadVideo() {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const formData = new FormData(); formData.append('video', blob, 'video.webm');
+        try {
+            const res = await fetch('/api/upload-video', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                videoStream.getTracks().forEach(track => track.stop());
+                if (videoContext.mode === 'intake') {
+                    uploadedVideoUrl = data.videoUrl; document.getElementById('btnRec').classList.remove('hidden');
+                } else {
+                    await fetch(`/api/orders/${videoContext.orderId}/tech-video`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: videoContext.type, videoUrl: data.videoUrl }) });
+                    document.getElementById('btnTechStartCam').classList.remove('hidden'); document.getElementById('techVideoPreview').classList.add('hidden'); fetchOrders(); 
+                }
+            }
+        } catch (err) { alert("Upload failed."); }
+    }
+
+    async function openPhotoModal(orderId, type) {
+        photoContext = { orderId, type }; openModal('driverPhotoModal');
+        try {
+            photoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+            document.getElementById('driverPhotoPreview').srcObject = photoStream;
+            document.getElementById('driverPhotoPreview').classList.remove('hidden');
+            document.getElementById('btnCapturePhoto').classList.remove('hidden');
+        } catch (err) { alert("Camera access denied."); }
+    }
+
+    async function capturePhoto() {
+        const video = document.getElementById('driverPhotoPreview'); const canvas = document.getElementById('photoCanvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageBase64 = canvas.toDataURL('image/png'); photoStream.getTracks().forEach(track => track.stop());
+        try {
+            await fetch(`/api/orders/${photoContext.orderId}/driver-image`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: photoContext.type, imageBase64 }) });
+            closeModal('driverPhotoModal'); fetchOrders();
+        } catch (err) { alert("Failed to save photo."); }
+    }
+
+    async function openEvidenceModal(orderId) {
+        const o = orders.find(o => o.id === orderId); if (!o) return;
+        document.getElementById('evSubtitle').innerText = `Order: ${o.id} • Customer: ${o.customer_name}`;
+
+        let timelineHtml = '<div class="text-gray-500 text-sm p-4">Loading activity...</div>';
+        try {
+            const logRes = await fetch(`/api/orders/${orderId}/logs`);
+            const logs = await logRes.json();
+            if (logs.length > 0) {
+                timelineHtml = '<div class="space-y-4 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-white/10">';
+                logs.forEach(log => {
+                    timelineHtml += `<div class="flex gap-4 items-start relative pl-6"><div class="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-[#d4af37] bg-[#08090a] z-10"></div><div class="flex-1"><p class="text-sm text-white font-medium">${sanitize(log.activity_detail)}</p><p class="text-xs text-gray-500 mt-0.5">${new Date(log.created_at).toLocaleString()} • By ${sanitize(log.performed_by)}</p></div></div>`;
+                });
+                timelineHtml += '</div>';
+            }
+        } catch (e) { timelineHtml = '<p class="text-red-400 text-sm">Error loading logs.</p>'; }
+
+        const renderMedia = (url, type) => {
+            if (!url) return `<div class="bg-black/30 border border-dashed border-white/10 rounded-xl p-4 text-center text-xs text-gray-600 italic">Not Recorded</div>`;
+            if (type === 'video') return `<video src="${url}" controls class="w-full rounded-xl border border-white/10"></video>`;
+            if (type === 'img') return `<img src="${url}" class="w-full rounded-xl border border-white/10">`;
+        };
+
+        const dateStr = new Date(o.created_at).toLocaleString();
+        const mediaHtml = `
+            <div class="bg-[#d4af37]/10 border border-[#d4af37]/20 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-2 mt-6">
+                <div><p class="text-xs uppercase tracking-wider text-[#d4af37]">Drop-off Timestamp</p><p class="text-white font-bold">${dateStr}</p></div>
+                <div class="sm:text-right"><p class="text-xs uppercase tracking-wider text-[#d4af37]">Final Repair Cost</p><p class="text-white font-bold">$${o.repair_cost}</p></div>
+            </div>
+            <div class="mt-6"><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Customer Signature Approval</h4>${renderMedia(o.signature_url, 'img')}</div>
+            <div class="mt-6"><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Cashier Pre-Repair Diagnostic Video</h4>${renderMedia(o.diag_video_url, 'video')}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Tech: Pre-Repair Video</h4>${renderMedia(o.tech_pre_repair_video_url, 'video')}</div>
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Tech: Post-Repair Video</h4>${renderMedia(o.tech_post_repair_video_url, 'video')}</div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Driver: Station Pickup</h4>${renderMedia(o.driver_station_pickup_img, 'img')}</div>
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Driver: Tech Dropoff</h4>${renderMedia(o.driver_tech_dropoff_img, 'img')}</div>
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Driver: Tech Pickup</h4>${renderMedia(o.driver_tech_pickup_img, 'img')}</div>
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Driver: Station Dropoff</h4>${renderMedia(o.driver_station_dropoff_img, 'img')}</div>
+            </div>
+            <div class="mt-6"><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Cashier Handover & Payment Video</h4>${renderMedia(o.handover_video_url, 'video')}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Customer Pickup Signature</h4>${renderMedia(o.pickup_signature_url, 'img')}</div>
+                <div><h4 class="text-sm uppercase tracking-wider text-gray-400 mb-3">Customer Selfie (Anti-Fraud)</h4>${renderMedia(o.pickup_selfie_url, 'img')}</div>
+            </div>
+        `;
+
+        document.getElementById('evContent').innerHTML = `<h3 class="text-sm uppercase tracking-wider text-[#d4af37] mb-4">Chronological Audit Trail</h3>${timelineHtml}${mediaHtml}`;
+        openModal('evidenceModal');
+    }
+
+    function getPos(e) { const r = sigCanvas.getBoundingClientRect(); return { x: (e.clientX || e.pageX) - r.left, y: (e.clientY || e.pageY) - r.top }; }
+    function startDraw(e) { drawing = true; sigCtx.beginPath(); sigCtx.moveTo(getPos(e).x, getPos(e).y); }
+    function draw(e) { if(!drawing) return; sigCtx.lineTo(getPos(e).x, getPos(e).y); sigCtx.stroke(); }
+    function clearSig() { sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); }
+
+    async function fetchOrders() {
+        try {
+            const res = await fetch('/api/orders'); if (res.status === 401) { logout(); return; }
+            orders = await res.json(); renderView();
+        } catch (err) { document.getElementById('view-container').innerText = "Error loading data."; }
+    }
+
+    async function advanceOrder(id) { await fetch(`/api/orders/${id}/advance`, { method: 'PATCH' }); fetchOrders(); }
+
+    document.getElementById('intakeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tempCanvas = document.createElement('canvas'); tempCanvas.width = sigCanvas.width; tempCanvas.height = sigCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d'); tempCtx.fillStyle = "#ffffff"; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); tempCtx.drawImage(sigCanvas, 0, 0);
+        const signatureBase64 = tempCanvas.toDataURL('image/png');
+        try {
+            const res = await fetch('/api/orders', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                
+                
+
+
+                body: JSON.stringify({
+                    customerName: m_customerName.value, 
+                    customerPhone: m_customerPhone.value, 
+                    deviceModel: m_deviceModel.value,
+                    repairItems: window.m_repairItems || 'No specific repair selected', 
+                    repairCost: m_repairCost.value, 
+                    signatureBase64, 
+                    diagVideoUrl: uploadedVideoUrl,
+                    smsConsent: document.getElementById('m_smsConsent').checked,
+                    photoConsent: document.getElementById('m_photoConsent').checked
+                })
+
+
+                
+            });
+            if(res.ok) { closeModal('intakeModal'); uploadedVideoUrl = null; fetchOrders(); }
+            else { const err = await res.json(); alert("Error: " + err.error); }
+        } catch (err) { alert("Network error submitting order: " + err.message); }
+    });
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); if(id === 'intakeModal') { nextStep(1); updateEstimate(); } }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+
+    function openTechVideoModal(orderId, type) {
+        activeTechOrderId = orderId; activeTechType = type;
+        document.getElementById('techVideoTitle').innerText = type === 'pre' ? 'Pre-Repair Video' : 'Post-Repair Video';
+        document.getElementById('techVideoSubtitle').innerText = `Order: ${orderId}`; openModal('techVideoModal');
+    }
+
+    function openReviseModal(orderId) { document.getElementById('reviseOrderId').value = orderId; openModal('techReviseModal'); }
+    document.getElementById('reviseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('reviseOrderId').value; const revisedCost = document.getElementById('reviseCost').value; const revisedNotes = document.getElementById('reviseNotes').value;
+        await fetch(`/api/orders/${id}/revise`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revisedCost, revisedNotes }) });
+        closeModal('techReviseModal'); fetchOrders();
+    });
+
+    async function markNotRepairable(orderId) {
+        if (!confirm("Mark this device as Not Repairable? It will be sent back to the station at no charge.")) return;
+        await fetch(`/api/orders/${orderId}/not-repairable`, { method: 'PATCH' }); fetchOrders();
+    }
+
+    function openHandoverVideo(orderId) {
+        handoverContext.orderId = orderId;
+        document.getElementById('pickupSubtitle').innerText = `Order: ${orderId}`;
+        nextPickupStep(1); openModal('pickupModal');
+    }
+
+    // --- PICKUP MODAL LOGIC (Video + Sig + Selfie) ---
+    let pickupStream, pickupRecorder, pickupChunks = [], pickupVideoUrl = null, pickupSigCtx, pickupDrawing = false, selfieStream = null;
+    let pickupSigCanvas;
+    
+    function nextPickupStep(step) {
+        document.getElementById('pickup-step-1').classList.add('hidden');
+        document.getElementById('pickup-step-2').classList.add('hidden');
+        document.getElementById('pickup-step-3').classList.add('hidden');
+        document.getElementById(`pickup-step-${step}`).classList.remove('hidden');
+        for (let i = 1; i <= 3; i++) {
+            const dot = document.getElementById(`pickup-dot-${i}`);
+            dot.classList.remove('step-active', 'step-completed'); dot.classList.add('text-gray-500');
+            if (i < step) { dot.classList.add('step-completed'); dot.innerHTML = `✓`; }
+            else if (i === step) { dot.classList.add('step-active'); dot.innerText = i; }
+            else { dot.innerText = i; }
+        }
+        if (step === 2) {
+            pickupSigCanvas = document.getElementById('pickupSigCanvas');
+            pickupSigCtx = pickupSigCanvas.getContext('2d');
+            pickupSigCtx.strokeStyle = "#000"; pickupSigCtx.lineWidth = 2;
+            pickupSigCanvas.onmousedown = (e) => { pickupDrawing = true; pickupSigCtx.beginPath(); const r = pickupSigCanvas.getBoundingClientRect(); pickupSigCtx.moveTo(e.clientX - r.left, e.clientY - r.top); };
+            pickupSigCanvas.onmousemove = (e) => { if(!pickupDrawing) return; const r = pickupSigCanvas.getBoundingClientRect(); pickupSigCtx.lineTo(e.clientX - r.left, e.clientY - r.top); pickupSigCtx.stroke(); };
+            pickupSigCanvas.onmouseup = () => pickupDrawing = false;
+            pickupSigCanvas.onmouseleave = () => pickupDrawing = false;
+            pickupSigCanvas.ontouchstart = (e) => { e.preventDefault(); pickupDrawing = true; pickupSigCtx.beginPath(); const r = pickupSigCanvas.getBoundingClientRect(); pickupSigCtx.moveTo(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); };
+            pickupSigCanvas.ontouchmove = (e) => { e.preventDefault(); if(!pickupDrawing) return; const r = pickupSigCanvas.getBoundingClientRect(); pickupSigCtx.lineTo(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); pickupSigCtx.stroke(); };
+            pickupSigCanvas.ontouchend = () => pickupDrawing = false;
+        }
+        if (step === 3) { startSelfieCamera(); }
+    }
+
+    function clearPickupSig() { pickupSigCtx.clearRect(0, 0, pickupSigCanvas.width, pickupSigCanvas.height); }
+
+    async function startPickupCamera() {
+        try {
+            pickupStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
+            document.getElementById('pickupVideoPreview').srcObject = pickupStream;
+            document.getElementById('pickupVideoPreview').classList.remove('hidden');
+            document.getElementById('btnPickupStartCam').classList.add('hidden');
+            document.getElementById('btnPickupRec').classList.remove('hidden');
+            document.getElementById('btnPickupRec').classList.add('flex');
+            document.getElementById('pickupRecStatus').innerText = "Camera ready.";
+        } catch (err) { alert("Camera access denied."); }
+    }
+    function startPickupRecording() {
+        pickupChunks = []; pickupRecorder = new MediaRecorder(pickupStream);
+        pickupRecorder.ondataavailable = (e) => e.data.size > 0 && pickupChunks.push(e.data);
+        pickupRecorder.onstop = uploadPickupVideo; pickupRecorder.start();
+        document.getElementById('btnPickupRec').classList.add('hidden');
+        document.getElementById('btnPickupStop').classList.remove('hidden');
+    }
+    function stopPickupRecording() {
+        pickupRecorder.stop();
+        document.getElementById('btnPickupStop').classList.add('hidden');
+        document.getElementById('pickupRecStatus').innerText = "Saving video...";
+    }
+    async function uploadPickupVideo() {
+        const blob = new Blob(pickupChunks, { type: 'video/webm' });
+        const formData = new FormData(); formData.append('video', blob, 'handover.webm');
+        try {
+            const res = await fetch('/api/upload-video', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                pickupStream.getTracks().forEach(track => track.stop());
+                pickupVideoUrl = data.videoUrl;
+                document.getElementById('pickupRecStatus').innerHTML = '<span class="text-emerald-400 font-bold">✓ Video Saved!</span>';
+                document.getElementById('btnPickupToSig').classList.remove('hidden');
+            }
+        } catch (err) { alert("Upload failed."); }
+    }
+
+    async function startSelfieCamera() {
+        try {
+            selfieStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+            document.getElementById('selfiePreview').srcObject = selfieStream;
+            document.getElementById('selfiePreview').classList.remove('hidden');
+            document.getElementById('btnCaptureSelfie').classList.remove('hidden');
+            document.getElementById('selfieStatus').innerText = "Camera ready. Smile!";
+        } catch (err) { document.getElementById('selfieStatus').innerText = "Front camera denied."; }
+    }
+    function captureSelfie() {
+        const video = document.getElementById('selfiePreview'); const canvas = document.getElementById('selfieCanvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        window.selfieBase64 = canvas.toDataURL('image/png');
+        selfieStream.getTracks().forEach(track => track.stop());
+        document.getElementById('selfiePreview').classList.add('hidden');
+        document.getElementById('btnCaptureSelfie').classList.add('hidden');
+        
+        
+                document.getElementById('selfieStatus').innerHTML = '<span class="text-emerald-400 font-bold">✓ Proof of Possession Captured!</span>';
+        document.getElementById('btnSubmitPickup').classList.remove('hidden');
+    }
+
+    async function submitPickup() {
+        const pickupSignatureBase64 = pickupSigCanvas.toDataURL('image/png');
+        try {
+            const res = await fetch(`/api/orders/${handoverContext.orderId}/handover`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoUrl: pickupVideoUrl, pickupSignatureBase64, pickupSelfieBase64: window.selfieBase64 })
+            });
+            if (res.ok) { closeModal('pickupModal'); fetchOrders(); }
+            else { const err = await res.json(); alert("Error: " + err.error); }
+        } catch (err) { alert("Network error."); }
+    }
+
+    function renderView() {
+        const c = document.getElementById('view-container');
+        if(currentUser.role === 'owner') c.innerHTML = renderOwner();
+        else if(currentUser.role === 'cashier') c.innerHTML = renderCashier();
+        else if(currentUser.role === 'driver') c.innerHTML = renderDriver();
+        else if(currentUser.role === 'tech') c.innerHTML = renderTech();
+    }
+
+    function renderStatCard(label, val, color) { return `<div class="bg-white/5 border border-white/5 p-4 md:p-6 rounded-2xl"><p class="text-xs text-gray-500 uppercase mb-2">${label}</p><h3 class="text-xl md:text-2xl font-bold ${color}">${val}</h3></div>`; }
+    function renderTrackingTable(list) {
+        if (list.length === 0) return `<p class="text-gray-600 text-sm italic mt-4">No history yet.</p>`;
+        return `<div class="glass rounded-2xl p-4 md:p-6 mt-8 overflow-x-auto"><h3 class="text-lg font-bold mb-4">History & Live Status Tracking</h3><table class="w-full text-sm min-w-[600px]"><thead class="text-gray-500 uppercase text-xs border-b border-white/5"><tr><th class="text-left py-3">Order ID</th><th class="text-left">Customer</th><th class="text-left">Device</th><th class="text-left">Current Live Status</th><th class="text-left">Date</th></tr></thead><tbody class="divide-y divide-white/5">${list.map(o => `<tr><td class="py-3 text-gray-400 font-mono">${sanitize(o.id)}</td><td>${sanitize(o.customer_name)}</td><td>${sanitize(o.device_model)}</td><td><span class="text-xs bg-[#d4af37]/10 text-[#d4af37] px-2 py-1 rounded">${sanitize(o.status.replace(/_/g, ' '))}</span></td><td class="text-gray-500 text-xs">${new Date(o.created_at).toLocaleDateString()}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    
+    function renderOwner() {
+        const completed = orders.filter(o => o.status === 'COMPLETED');
+        return `<div class="mb-6 md:mb-10"><h2 class="text-3xl md:text-4xl font-bold mb-2">Company Overview</h2></div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            ${renderStatCard('Total Revenue', `$${completed.reduce((a,b) => a + b.repair_cost, 0)}`, 'text-emerald-400')}
+            ${renderStatCard('Business Profit', `$${completed.reduce((a,b) => a + b.business_cut, 0)}`, 'text-[#d4af37]')}
+            ${renderStatCard('Active Repairs', orders.filter(o => o.status !== 'COMPLETED').length, 'text-white')}
+        </div>
+        <div class="glass rounded-2xl p-4 md:p-6 overflow-x-auto"><h3 class="text-lg font-bold mb-4">All Orders & Dispute Center</h3><table class="w-full text-sm min-w-[500px]"><thead class="text-gray-500 uppercase text-xs border-b border-white/5"><tr><th class="text-left py-3">Order ID</th><th class="text-left">Customer</th><th class="text-left">Device</th><th class="text-left">Status</th><th class="text-right">Evidence</th></tr></thead><tbody class="divide-y divide-white/5">${orders.map(o => `<tr><td class="py-3 text-gray-400 font-mono">${sanitize(o.id)}</td><td>${sanitize(o.customer_name)}</td><td>${sanitize(o.device_model)}</td><td><span class="text-xs bg-white/5 px-2 py-1 rounded">${sanitize(o.status.replace(/_/g, ' '))}</span></td><td class="text-right"><button onclick="openEvidenceModal('${o.id}')" class="btn-gold px-3 py-1 rounded-lg text-xs whitespace-nowrap">View Evidence</button></td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function renderCashier() {
+        const toDriver = orders.filter(o => o.status === 'DROPPED_AT_STATION');
+        const toCust = orders.filter(o => o.status === 'READY_FOR_CUSTOMER' && !o.handover_video_url);
+        const card = (o, txt, cls, action) => `<div class="bg-black/30 border border-white/10 rounded-xl p-4 md:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><div><h4 class="font-semibold text-white">${sanitize(o.device_model)}</h4><p class="text-sm text-gray-500">${sanitize(o.customer_name)} • $${o.repair_cost}</p></div><button onclick="${action}" class="${cls} px-4 py-2 rounded-lg text-xs font-medium w-full sm:w-auto text-center">${txt}</button></div>`;
+        return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 md:mb-10 gap-4"><div><h2 class="text-3xl md:text-4xl font-bold mb-2">Cashier Portal</h2></div><button onclick="openModal('intakeModal')" class="btn-gold px-6 py-3 rounded-xl text-sm w-full sm:w-auto">New Intake</button></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div><h3 class="text-sm uppercase tracking-wider text-gray-400 mb-4">Hand Off to Driver</h3><div class="space-y-3">${toDriver.map(o => card(o, 'Mark Picked Up', 'bg-white/5 hover:bg-white/10 text-white border border-white/10', `advanceOrder('${o.id}')`)).join('') || '<p class="text-gray-600 text-sm italic">None waiting.</p>'}</div></div>
+            <div><h3 class="text-sm uppercase tracking-wider text-gray-400 mb-4">Customer Pickup (Video Required)</h3><div class="space-y-3">${toCust.map(o => card(o, 'Record Handover & Pay', 'btn-gold', `openHandoverVideo('${o.id}')`)).join('') || '<p class="text-gray-600 text-sm italic">None ready.</p>'}</div></div>
+        </div>${renderTrackingTable(orders.filter(o => o.status !== 'DROPPED_AT_STATION' && o.status !== 'READY_FOR_CUSTOMER'))}`;
+    }
+
+    function renderDriver() {
+        const pickStation = orders.filter(o => o.status === 'DROPPED_AT_STATION');
+        const dropTech = orders.filter(o => o.status === 'DRIVER_TO_TECH');
+        const pickTech = orders.filter(o => o.status === 'REPAIR_DONE');
+        const dropStation = orders.filter(o => o.status === 'DRIVER_TO_STATION');
+        const getPhotoBtn = (o, type) => o[`driver_${type}_img`] ? `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">Photo ✓</span>` : `<button onclick="openPhotoModal('${o.id}', '${type}')" class="text-[10px] bg-white/5 hover:bg-white/10 text-white px-2 py-1 rounded-full border border-white/10">Take Photo</button>`;
+        const card = (o, type, txt) => {
+            const hasPhoto = o[`driver_${type}_img`];
+            return `<div class="bg-black/30 border border-white/10 rounded-xl p-4 md:p-5 flex flex-col gap-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div><h4 class="font-semibold text-white">${sanitize(o.device_model)}</h4><p class="text-sm text-gray-500">${sanitize(o.customer_name)}</p></div>
+                    <button onclick="advanceOrder('${o.id}')" class="bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg text-xs font-medium border border-white/10 w-full sm:w-auto text-center" ${!hasPhoto ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>${txt}</button>
+                </div>
+                <div class="flex gap-2 border-t border-white/5 pt-3 items-center">
+                    ${getPhotoBtn(o, type)}
+                    ${!hasPhoto ? '<span class="text-[10px] text-red-400">Photo required to proceed</span>' : ''}
+                </div>
+            </div>`;
+        };
+        return `<div class="mb-6 md:mb-10"><h2 class="text-3xl md:text-4xl font-bold mb-2">Driver Routes</h2></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div><h3 class="text-sm uppercase tracking-wider text-blue-400 mb-4">Station Pickups</h3><div class="space-y-3">${pickStation.map(o => card(o, 'station_pickup', 'Picked Up')).join('') || '<p class="text-gray-600 text-sm italic">None scheduled.</p>'}</div><h3 class="text-sm uppercase tracking-wider text-amber-400 mb-4 mt-8">Drop to Tech</h3><div class="space-y-3">${dropTech.map(o => card(o, 'tech_dropoff', 'Dropped at Tech')).join('') || '<p class="text-gray-600 text-sm italic">None.</p>'}</div></div>
+            <div><h3 class="text-sm uppercase tracking-wider text-purple-400 mb-4">Tech Pickups</h3><div class="space-y-3">${pickTech.map(o => card(o, 'tech_pickup', 'Picked Up')).join('') || '<p class="text-gray-600 text-sm italic">None ready.</p>'}</div><h3 class="text-sm uppercase tracking-wider text-emerald-400 mb-4 mt-8">Drop to Station</h3><div class="space-y-3">${dropStation.map(o => card(o, 'station_dropoff', 'Dropped at Station')).join('' ) || '<p class="text-gray-600 text-sm italic">None.</p>'}</div></div>
+        </div>${renderTrackingTable(orders.filter(o => !['DROPPED_AT_STATION', 'DRIVER_TO_TECH', 'REPAIR_DONE', 'DRIVER_TO_STATION'].includes(o.status)))}`;
+    }
+
+    function renderTech() {
+        const inc = orders.filter(o => o.status === 'AT_TECH');
+        const rep = orders.filter(o => o.status === 'REPAIRING');
+        const card = (o, txt) => {
+            const preVidBtn = o.tech_pre_repair_video_url ? `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">Pre-Repair ✓</span>` : `<button onclick="openTechVideoModal('${o.id}', 'pre')" class="text-[10px] bg-white/5 hover:bg-white/10 text-white px-2 py-1 rounded-full border border-white/10">Rec Pre-Repair</button>`;
+            const postVidBtn = o.tech_post_repair_video_url ? `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">Post-Repair ✓</span>` : `<button onclick="openTechVideoModal('${o.id}', 'post')" class="text-[10px] bg-white/5 hover:bg-white/10 text-white px-2 py-1 rounded-full border border-white/10">Rec Post-Repair</button>`;
+            
+            let statusBanner = '';
+            let isDisabled = false;
+            
+            if (o.revision_status === 'Pending Customer') {
+                statusBanner = `<div class="bg-yellow-500/10 text-yellow-400 text-xs px-3 py-2 rounded-lg mt-2 text-center">⏳ Waiting for Customer Approval ($${o.revised_cost})</div>`;
+                isDisabled = true;
+            } else if (o.revision_status === 'Approved') {
+                statusBanner = `<div class="bg-emerald-500/10 text-emerald-400 text-sm font-bold px-3 py-2 rounded-lg mt-2 text-center">✅ CUSTOMER APPROVED REVISION ($${o.repair_cost}). Proceed with repair.</div>`;
+            } else if (o.revision_status === 'Rejected') {
+                statusBanner = `<div class="bg-red-500/10 text-red-400 text-sm font-bold px-3 py-2 rounded-lg mt-2 text-center">❌ CUSTOMER REJECTED REVISION. Do NOT repair. Return to Driver.</div>`;
+                isDisabled = true;
+            }
+
+            const reviseBtn = o.status === 'REPAIRING' && o.revision_status === 'None' ? `<button onclick="openReviseModal('${o.id}')" class="text-[10px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-2 py-1 rounded-full border border-blue-500/20">Revise Estimate</button>` : '';
+            const notRepBtn = o.status === 'REPAIRING' && o.revision_status === 'None' ? `<button onclick="markNotRepairable('${o.id}')" class="text-[10px] bg-red-500/10 text-red-400 hover:bg-red-500/20 px-2 py-1 rounded-full border border-red-500/20">Not Repairable</button>` : '';
+
+            return `<div class="bg-black/30 border border-white/10 rounded-xl p-4 md:p-5 flex flex-col gap-4"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><div><h4 class="font-semibold text-white">${sanitize(o.device_model)}</h4><p class="text-sm text-gray-500">${sanitize(o.issue)}</p></div><button onclick="advanceOrder('${o.id}')" class="btn-gold px-4 py-2 rounded-lg text-xs font-medium w-full sm:w-auto text-center" ${isDisabled ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>${txt}</button></div><div class="flex flex-wrap gap-2 border-t border-white/5 pt-3">${preVidBtn}${postVidBtn}${reviseBtn}${notRepBtn}</div>${statusBanner}</div>`;
+        };
+        return `<div class="mb-6 md:mb-10"><h2 class="text-3xl md:text-4xl font-bold mb-2">Repair Queue</h2></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h3 class="text-sm uppercase tracking-wider text-gray-400 mb-4">Incoming</h3><div class="space-y-3">${inc.map(o => card(o, 'Start Repair')).join('') || '<p class="text-gray-600 text-sm italic">Empty.</p>'}</div></div><div><h3 class="text-sm uppercase tracking-wider text-gray-400 mb-4">Repairing</h3><div class="space-y-3">${rep.map(o => card(o, 'Mark Repaired')).join('') || '<p class="text-gray-600 text-sm italic">Empty.</p>'}</div></div></div>${renderTrackingTable(orders.filter(o => !['AT_TECH', 'REPAIRING'].includes(o.status)))}`;
+    }
+</script>
+</body>
+</html>
