@@ -269,7 +269,7 @@ app.patch('/api/orders/:id/revise', requireAuth, (req, res) => {
         const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
         client.messages.create({
-            body: `RepairLogix: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogix.onrender.com/?track=${order.id}&review=1`,
+            body: `RepairLogix: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogics.us/?track=${order.id}&review=1`,
             from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone
         }).catch(() => {});
     }
