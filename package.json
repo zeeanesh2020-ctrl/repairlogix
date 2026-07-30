@@ -1,11 +1,12 @@
 {
-  "name": "repairlogix",
+  "name": "repairlogics",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.1.2",
     "cors": "^2.8.5",
@@ -13,7 +14,5 @@
     "express-session": "^1.18.0",
     "multer": "^1.4.5-lts.1",
     "twilio": "^5.3.0"
-    "@supabase/supabase-js": "^2.0.0"
-    
   }
 }
