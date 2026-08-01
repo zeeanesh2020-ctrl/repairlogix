@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
@@ -11,20 +10,21 @@ const bcrypt = require('bcryptjs');
 const app = express();
 // Required for Hostinger/Nginx reverse proxy to allow secure session cookies
 app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
+const SESSION_SECRET = 'HostingerRepairLogicsSecret2026'; // Hardcoded for Hostinger stability
 
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static('public'));
 
-// Secure Session Configuration
-// Hostinger Bulletproof Fix: Use environment variable if available, otherwise use a hardcoded fallback to allow the app to boot.
-//.     const SESSION_SECRET = process.env.SESSION_SECRET || 'HostingerRepairLogicsSecret2026';
-const SESSION_SECRET = 'HostingerRepairLogicsSecret2026';
-
-
-
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
 
 // Ensure upload directories exist
 const videoUploadDir = path.join(__dirname, 'public', 'uploads', 'videos');
@@ -35,7 +35,7 @@ const sigUploadDir = path.join(__dirname, 'public', 'uploads');
 });
 
 // Initialize SQLite Database
-const db = new Database('repairlogix.db');
+const db = new Database(path.join(__dirname, 'repairlogix.db'));
 db.pragma('journal_mode = WAL');
 
 // Create Tables
@@ -85,18 +85,17 @@ db.exec(`
   )
 `);
 
-// Add columns if they don't exist (for existing databases)
+// Add columns if they don't exist
 const columns = [
     'diag_video_url', 'tech_pre_repair_video_url', 'tech_post_repair_video_url', 
     'driver_station_pickup_img', 'driver_tech_dropoff_img', 'driver_tech_pickup_img', 
     'driver_station_dropoff_img', 'cashier_id', 'revision_status', 'revised_cost', 
-        'handover_video_url', 'pickup_signature_url', 'pickup_selfie_url', 'sms_consent', 'photo_consent'
+    'handover_video_url', 'pickup_signature_url', 'pickup_selfie_url'
 ];
 columns.forEach(col => {
     try { db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${col.includes('cost') || col.includes('id') ? 'INTEGER' : 'TEXT'}`); } catch (e) {}
 });
 
-// Seed Default Users
 // Seed Default Users (Synchronous to guarantee users exist before startup)
 const users = [
     { username: 'owner', password: 'owner123', role: 'owner' },
@@ -104,13 +103,13 @@ const users = [
     { username: 'driver', password: 'driver123', role: 'driver' },
     { username: 'tech', password: 'tech123', role: 'tech' }
 ];
-for (const u of users) {
+users.forEach(u => {
     const existing = db.prepare('SELECT * FROM users WHERE username = ?').get(u.username);
     if (!existing) {
         const hashed = bcrypt.hashSync(u.password, 10);
         db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(u.username, hashed, u.role);
     }
-}
+});
 
 // Configure Multer
 const storage = multer.diskStorage({
@@ -211,9 +210,8 @@ app.get('/api/orders', requireAuth, (req, res) => {
 
 app.post('/api/orders', requireAuth, (req, res) => {
   try {
-        const { customerName, customerPhone, deviceModel, repairItems, repairCost, signatureBase64, diagVideoUrl, smsConsent, photoConsent } = req.body;
-      
-      if (!customerName || !customerPhone || !deviceModel || !repairItems || !repairCost) return res.status(400).json({ error: "Missing fields" });
+    const { customerName, customerPhone, deviceModel, repairItems, repairCost, signatureBase64, diagVideoUrl } = req.body;
+    if (!customerName || !customerPhone || !deviceModel || !repairItems || !repairCost) return res.status(400).json({ error: "Missing fields" });
 
     const payouts = calculatePayouts(repairCost);
     let signatureUrl = null;
@@ -227,27 +225,15 @@ app.post('/api/orders', requireAuth, (req, res) => {
     }
 
     const id = `RLX-${Date.now().toString(36).toUpperCase()}`;
-
     db.prepare(`
-      INSERT INTO orders (id, customer_name, customer_phone, device_model, issue, repair_cost, station_cut, cashier_cut, driver_cut, tech_cut, business_cut, signature_url, diag_video_url, cashier_id, sms_consent, photo_consent)
-      VALUES (@id, @customerName, @customerPhone, @deviceModel, @issue, @repairCost, @stationCut, @cashierCut, @driverCut, @techCut, @businessCut, @signatureUrl, @diagVideoUrl, @cashierId, @smsConsent, @photoConsent)
-    `).run({ id, customerName, customerPhone, deviceModel, issue: repairItems, ...payouts, signatureUrl, diagVideoUrl: diagVideoUrl || null, cashierId: req.session.user.id, smsConsent: smsConsent ? 1 : 0, photoConsent: photoConsent ? 1 : 0 });
-
-      
+      INSERT INTO orders (id, customer_name, customer_phone, device_model, issue, repair_cost, station_cut, cashier_cut, driver_cut, tech_cut, business_cut, signature_url, diag_video_url, cashier_id)
+      VALUES (@id, @customerName, @customerPhone, @deviceModel, @issue, @repairCost, @stationCut, @cashierCut, @driverCut, @techCut, @businessCut, @signatureUrl, @diagVideoUrl, @cashierId)
+    `).run({ id, customerName, customerPhone, deviceModel, issue: repairItems, ...payouts, signatureUrl, diagVideoUrl: diagVideoUrl || null, cashierId: req.session.user.id });
 
     logActivity(id, 'ORDER_CREATED', `Order created by ${req.session.user.username}. Est: $${repairCost}. Items: ${repairItems}`, req.session.user.username);
     if (signatureUrl) logActivity(id, 'MEDIA_UPLOADED', 'Customer signed estimate approval.', req.session.user.username);
     if (diagVideoUrl) logActivity(id, 'MEDIA_UPLOADED', 'Cashier uploaded diagnostic video.', req.session.user.username);
 
-    if (process.env.TWILIO_ACCOUNT_SID) {
-      try {
-        const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        client.messages.create({
-          body: `RepairLogix: We've received your ${deviceModel} for: ${repairItems}. Estimate: $${repairCost}.`,
-          from: process.env.TWILIO_PHONE_NUMBER, to: customerPhone
-        }).catch(err => console.error("Twilio Error:", err.message));
-      } catch (err) {}
-    }
     res.status(201).json({ success: true, id });
   } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
@@ -266,7 +252,7 @@ app.patch('/api/orders/:id/revise', requireAuth, (req, res) => {
         const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
         client.messages.create({
-            body: `RepairLogix: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogix.onrender.com/?track=${order.id}&review=1`,
+            body: `RepairLogics: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogics.us/?track=${order.id}`,
             from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone
         }).catch(() => {});
     }
@@ -299,7 +285,7 @@ app.patch('/api/orders/:id/not-repairable', requireAuth, (req, res) => {
         const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
         client.messages.create({
-            body: `RepairLogix: Unfortunately, your ${order.device_model} is not repairable. The driver is returning it to the gas station. No charge applied.`,
+            body: `RepairLogics: Unfortunately, your ${order.device_model} is not repairable. The driver is returning it to the gas station. No charge applied.`,
             from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone
         }).catch(() => {});
     }
@@ -336,7 +322,7 @@ app.patch('/api/orders/:id/handover', requireAuth, (req, res) => {
         const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
         client.messages.create({
-            body: `RepairLogix: Payment received. Thank you for your business!`,
+            body: `RepairLogics: Payment received. Thank you for your business!`,
             from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone
         }).catch(() => {});
     }
@@ -372,12 +358,38 @@ app.patch('/api/orders/:id/advance', requireAuth, (req, res) => {
          let msg = "";
          if (nextStatus === 'DRIVER_TO_TECH') msg = `Your driver has picked up your ${order.device_model}.`;
          else if (nextStatus === 'READY_FOR_CUSTOMER') msg = `Your ${order.device_model} is ready for pickup! Please bring $${order.repair_cost}.`;
-         if (msg) client.messages.create({ body: `RepairLogix: ${msg}`, from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone }).catch(() => {});
+         if (msg) client.messages.create({ body: `RepairLogics: ${msg}`, from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone }).catch(() => {});
       }
       return res.json({ success: true, newStatus: nextStatus });
     }
     res.json({ success: true, newStatus: order.status });
   } catch (error) { res.status(500).json({ error: "Failed" }); }
+});
+
+// --- DYNAMIC MARKETING QR REDIRECT ---
+db.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
+const defaultUrl = db.prepare('SELECT * FROM settings WHERE key = ?').get('marketing_redirect_url');
+if (!defaultUrl) {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('marketing_redirect_url', 'https://repairlogics.us');
+}
+
+app.get('/r/marketing', (req, res) => {
+  const setting = db.prepare('SELECT * FROM settings WHERE key = ?').get('marketing_redirect_url');
+  const targetUrl = setting ? setting.value : 'https://repairlogics.us';
+  res.redirect(302, targetUrl);
+});
+
+app.get('/api/settings/marketing', requireAuth, (req, res) => {
+  const setting = db.prepare('SELECT * FROM settings WHERE key = ?').get('marketing_redirect_url');
+  res.json({ url: setting ? setting.value : 'https://repairlogics.us' });
+});
+
+app.patch('/api/settings/marketing', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: "Unauthorized" });
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: "URL required" });
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('marketing_redirect_url', url);
+  res.json({ success: true, url });
 });
 
 // --- PUBLIC TRACKING API ---
@@ -389,4 +401,4 @@ app.get('/api/track/:id', (req, res) => {
   } catch (err) { res.status(500).json({ error: "Server error" }); }
 });
 
-app.listen(PORT, () => console.log(`RepairLogix Audit Trail System running on port ${PORT}`));
+app.listen(PORT, () => console.log(`RepairLogics running on port ${PORT}`));
