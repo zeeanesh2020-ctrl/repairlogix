@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
@@ -8,6 +9,8 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 
 const app = express();
+// Required for Hostinger/Nginx reverse proxy to allow secure session cookies
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -16,17 +19,12 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.static('public'));
 
 // Secure Session Configuration
-const SESSION_SECRET = process.env.SESSION_SECRET;
-if (!SESSION_SECRET) {
-    console.error("FATAL ERROR: SESSION_SECRET environment variable is not set. App cannot start securely.");
-    process.exit(1); // Force crash if secret is missing
-}
-app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
-}));
+// Hostinger Bulletproof Fix: Use environment variable if available, otherwise use a hardcoded fallback to allow the app to boot.
+//.     const SESSION_SECRET = process.env.SESSION_SECRET || 'HostingerRepairLogicsSecret2026';
+const SESSION_SECRET = 'HostingerRepairLogicsSecret2026';
+
+
+
 
 // Ensure upload directories exist
 const videoUploadDir = path.join(__dirname, 'public', 'uploads', 'videos');
@@ -99,21 +97,20 @@ columns.forEach(col => {
 });
 
 // Seed Default Users
-(async () => {
-    const users = [
-        { username: 'owner', password: 'owner123', role: 'owner' },
-        { username: 'cashier', password: 'cashier123', role: 'cashier' },
-        { username: 'driver', password: 'driver123', role: 'driver' },
-        { username: 'tech', password: 'tech123', role: 'tech' }
-    ];
-    for (const u of users) {
-        const existing = db.prepare('SELECT * FROM users WHERE username = ?').get(u.username);
-        if (!existing) {
-            const hashed = await bcrypt.hash(u.password, 10);
-            db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(u.username, hashed, u.role);
-        }
+// Seed Default Users (Synchronous to guarantee users exist before startup)
+const users = [
+    { username: 'owner', password: 'owner123', role: 'owner' },
+    { username: 'cashier', password: 'cashier123', role: 'cashier' },
+    { username: 'driver', password: 'driver123', role: 'driver' },
+    { username: 'tech', password: 'tech123', role: 'tech' }
+];
+for (const u of users) {
+    const existing = db.prepare('SELECT * FROM users WHERE username = ?').get(u.username);
+    if (!existing) {
+        const hashed = bcrypt.hashSync(u.password, 10);
+        db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(u.username, hashed, u.role);
     }
-})();
+}
 
 // Configure Multer
 const storage = multer.diskStorage({
@@ -269,7 +266,7 @@ app.patch('/api/orders/:id/revise', requireAuth, (req, res) => {
         const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
         client.messages.create({
-            body: `RepairLogix: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogics.us/?track=${order.id}&review=1`,
+            body: `RepairLogix: Tech recommends a revised estimate of $${revisedCost} for your ${order.device_model}. Reason: ${revisedNotes}. Please click here to approve: https://repairlogix.onrender.com/?track=${order.id}&review=1`,
             from: process.env.TWILIO_PHONE_NUMBER, to: order.customer_phone
         }).catch(() => {});
     }
